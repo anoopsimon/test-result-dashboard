@@ -15,44 +15,43 @@ const testResultSchema = new mongoose.Schema({
 // Create a Model
 const TestResult = mongoose.model('TestResult', testResultSchema);
 
-// Mock data
-const mockData = [
-    {
-        testName: 'Test A',
-        status: 'pass',
-        duration: 120,
-        startTime: new Date('2024-10-01T10:00:00Z'),
-        endTime: new Date('2024-10-01T10:02:00Z')
-    },
-    {
-        testName: 'Test B',
-        status: 'fail',
-        duration: 150,
-        startTime: new Date('2024-10-01T11:00:00Z'),
-        endTime: new Date('2024-10-01T11:02:30Z')
-    },
-    {
-        testName: 'Test C',
-        status: 'pass',
-        duration: 200,
-        startTime: new Date('2024-10-02T12:00:00Z'),
-        endTime: new Date('2024-10-02T12:03:20Z')
-    },
-    {
-        testName: 'Test D',
-        status: 'pass',
-        duration: 100,
-        startTime: new Date('2024-10-02T13:00:00Z'),
-        endTime: new Date('2024-10-02T13:01:40Z')
-    },
-    {
-        testName: 'Test E',
-        status: 'fail',
-        duration: 180,
-        startTime: new Date('2024-10-03T14:00:00Z'),
-        endTime: new Date('2024-10-03T14:03:00Z')
+// Helper function to generate random test names
+const getRandomTestName = (index) => `Test ${String.fromCharCode(65 + index)}`; // Generates Test A, Test B, etc.
+
+// Helper function to generate random statuses
+const getRandomStatus = () => Math.random() > 0.5 ? 'pass' : 'fail';
+
+// Helper function to generate random durations
+const getRandomDuration = () => Math.floor(Math.random() * 300) + 60; // Random duration between 60 and 360 seconds
+
+// Helper function to generate random timestamps
+const getRandomTime = (startDate) => {
+    const startTimestamp = startDate.getTime();
+    const endTimestamp = startTimestamp + (24 * 60 * 60 * 1000); // 24 hours later
+    return new Date(Math.floor(Math.random() * (endTimestamp - startTimestamp) + startTimestamp));
+};
+
+// Function to generate mock data
+const generateMockData = (numTests) => {
+    const mockData = [];
+    const startDate = new Date('2024-10-01T00:00:00Z');
+
+    for (let i = 0; i < numTests; i++) {
+        const startTime = getRandomTime(startDate);
+        const duration = getRandomDuration();
+        const endTime = new Date(startTime.getTime() + duration * 1000);
+
+        mockData.push({
+            testName: getRandomTestName(i),
+            status: getRandomStatus(),
+            duration,
+            startTime,
+            endTime
+        });
     }
-];
+
+    return mockData;
+};
 
 // Function to load mock data
 const loadMockData = async () => {
@@ -66,7 +65,8 @@ const loadMockData = async () => {
         // Clear existing data
         await TestResult.deleteMany({});
 
-        // Insert mock data
+        // Generate and insert mock data
+        const mockData = generateMockData(1000); // Generate 10 random test results
         const result = await TestResult.insertMany(mockData);
         console.log('Mock data loaded:', result);
 

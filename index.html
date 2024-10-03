@@ -77,238 +77,255 @@
             drawTrendChart(trendData);
             drawAdditionalChart(data); // Additional chart
         }
-
         function drawSummaryChart(summary) {
-            const width = 400;
-            const height = 300;
+    const width = 400;
+    const height = 300;
 
-            const svg = d3.select("#summary-chart").append("svg")
-                .attr("width", width)
-                .attr("height", height)
-                .append("g")
-                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+    const svg = d3.select("#summary-chart").append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", `translate(${width / 2}, ${height / 2})`);
 
-            const radius = Math.min(width, height) / 2;
-            const color = d3.scaleOrdinal(d3.schemeCategory10);
-            const pie = d3.pie().value(d => d[1]);
-            const arc = d3.arc().innerRadius(0).outerRadius(radius);
+    const radius = Math.min(width, height) / 2;
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+    const pie = d3.pie().value(d => d[1]);
+    const arc = d3.arc().innerRadius(0).outerRadius(radius);
 
-            const dataReady = pie(Object.entries(summary));
+    const dataReady = pie(Object.entries(summary));
 
-            svg.selectAll("slice")
-                .data(dataReady)
-                .enter()
-                .append("path")
-                .attr("d", arc)
-                .attr("fill", d => color(d.data[0]))
-                .attr("stroke", "white")
-                .style("stroke-width", "2px")
-                .transition()
-                .duration(750); // Animation on load
+    svg.selectAll("slice")
+        .data(dataReady)
+        .enter()
+        .append("path")
+        .attr("d", arc)
+        .attr("fill", d => color(d.data[0]))
+        .attr("stroke", "white")
+        .style("stroke-width", "2px")
+        .transition()
+        .duration(750); // Animation on load
 
-            // Add legend
-            const legend = svg.append("g")
-                .attr("transform", `translate(${width / 2 + 50}, ${-height / 2 + 20})`);
+    // Add values on the pie chart
+    svg.selectAll("slice")
+        .data(dataReady)
+        .enter()
+        .append("text")
+        .attr("transform", d => `translate(${arc.centroid(d)})`)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .text(d => d.data[1])
+        .style("fill", "white");
 
-            legend.selectAll("legend-item")
-                .data(Object.entries(summary))
-                .enter()
-                .append("rect")
-                .attr("x", 0)
-                .attr("y", (d, i) => i * 20)
-                .attr("width", 15)
-                .attr("height", 15)
-                .attr("fill", (d, i) => color(d[0]));
+    // Add legend
+    const legend = svg.append("g")
+        .attr("transform", `translate(${width / 2 + 50}, ${-height / 2 + 20})`);
 
-            legend.selectAll("legend-text")
-                .data(Object.entries(summary))
-                .enter()
-                .append("text")
-                .attr("x", 20)
-                .attr("y", (d, i) => i * 20 + 12)
-                .text(d => d[0]);
-        }
+    legend.selectAll("legend-item")
+        .data(Object.entries(summary))
+        .enter()
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", (d, i) => i * 20)
+        .attr("width", 15)
+        .attr("height", 15)
+        .attr("fill", (d, i) => color(d[0]));
 
-        function drawSummaryByDateChart(summaryByDate) {
-            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
-            const width = 400 - margin.left - margin.right;
-            const height = 300 - margin.top - margin.bottom;
+    legend.selectAll("legend-text")
+        .data(Object.entries(summary))
+        .enter()
+        .append("text")
+        .attr("x", 20)
+        .attr("y", (d, i) => i * 20 + 12)
+        .text(d => d[0]);
+}
 
-            const svg = d3.select("#summary-by-date")
-                .append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+function drawSummaryByDateChart(summaryByDate) {
+    const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+    const width = 400 - margin.left - margin.right;
+    const height = 300 - margin.top - margin.bottom;
 
-            const x = d3.scaleBand()
-                .domain(Object.keys(summaryByDate))
-                .range([0, width])
-                .padding(0.1);
+    const svg = d3.select("#summary-by-date")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-            const y = d3.scaleLinear()
-                .domain([0, d3.max(Object.values(summaryByDate))])
-                .nice()
-                .range([height, 0]);
+    const x = d3.scaleBand()
+        .domain(Object.keys(summaryByDate))
+        .range([0, width])
+        .padding(0.1);
 
-            svg.append("g")
-                .attr("transform", `translate(0, ${height})`)
-                .call(d3.axisBottom(x));
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(Object.values(summaryByDate))])
+        .nice()
+        .range([height, 0]);
 
-            svg.append("g")
-                .call(d3.axisLeft(y));
+    svg.append("g")
+        .attr("transform", `translate(0, ${height})`)
+        .call(d3.axisBottom(x));
 
-            svg.selectAll(".bar")
-                .data(Object.entries(summaryByDate))
-                .enter()
-                .append("rect")
-                .attr("class", "bar")
-                .attr("x", d => x(d[0]))
-                .attr("y", d => y(d[1]))
-                .attr("width", x.bandwidth())
-                .attr("height", d => height - y(d[1]))
-                .attr("fill", "steelblue")
-                .transition()
-                .duration(750); // Animation on load
+    svg.append("g")
+        .call(d3.axisLeft(y));
 
-            // Add legend
-            const legend = svg.append("g")
-                .attr("transform", `translate(${width + 10}, 0)`);
+    svg.selectAll(".bar")
+        .data(Object.entries(summaryByDate))
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x", d => x(d[0]))
+        .attr("y", d => y(d[1]))
+        .attr("width", x.bandwidth())
+        .attr("height", d => height - y(d[1]))
+        .attr("fill", "steelblue")
+        .transition()
+        .duration(750); // Animation on load
 
-            legend.append("text")
-                .text("Tests Run")
-                .attr("y", 10)
-                .attr("font-weight", "bold");
+    // Add values on top of bars
+    svg.selectAll(".bar")
+        .data(Object.entries(summaryByDate))
+        .enter()
+        .append("text")
+        .attr("x", d => x(d[0]) + x.bandwidth() / 2)
+        .attr("y", d => y(d[1]) - 5) // Positioning above the bar
+        .attr("text-anchor", "middle")
+        .text(d => d[1]);
 
-            Object.entries(summaryByDate).forEach((d, i) => {
-                legend.append("rect")
-                    .attr("x", 0)
-                    .attr("y", 20 + i * 20)
-                    .attr("width", 15)
-                    .attr("height", 15)
-                    .attr("fill", "steelblue");
+    // Add legend
+    const legend = svg.append("g")
+        .attr("transform", `translate(${width + 10}, 0)`);
 
-                legend.append("text")
-                    .attr("x", 20)
-                    .attr("y", 20 + i * 20 + 12)
-                    .text(d[0]);
-            });
-        }
+    legend.append("text")
+        .text("Tests Run")
+        .attr("y", 10)
+        .attr("font-weight", "bold");
 
-        function drawTrendChart(trendData) {
-            const margin = { top: 20, right: 30, bottom: 30, left: 40 };
-            const width = 400 - margin.left - margin.right;
-            const height = 300 - margin.top - margin.bottom;
+    Object.entries(summaryByDate).forEach((d, i) => {
+        legend.append("rect")
+            .attr("x", 0)
+            .attr("y", 20 + i * 20)
+            .attr("width", 15)
+            .attr("height", 15)
+            .attr("fill", "steelblue");
 
-            const svg = d3.select("#trend-chart")
-                .append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+        legend.append("text")
+            .attr("x", 20)
+            .attr("y", 20 + i * 20 + 12)
+            .text(d[0]);
+    });
+}
 
-            const x = d3.scaleTime()
-                .domain(d3.extent(Object.keys(trendData), d => new Date(d)))
-                .range([0, width]);
+function drawTrendChart(trendData) {
+    const margin = { top: 20, right: 30, bottom: 30, left: 40 };
+    const width = 400 - margin.left - margin.right;
+    const height = 300 - margin.top - margin.bottom;
 
-            const y = d3.scaleLinear()
-                .domain([0, d3.max(Object.values(trendData))])
-                .nice()
-                .range([height, 0]);
+    const svg = d3.select("#trend-chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-            svg.append("g")
-                .attr("transform", `translate(0, ${height})`)
-                .call(d3.axisBottom(x));
+    const x = d3.scaleTime()
+        .domain(d3.extent(Object.keys(trendData), d => new Date(d)))
+        .range([0, width]);
 
-            svg.append("g")
-                .call(d3.axisLeft(y));
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(Object.values(trendData))])
+        .nice()
+        .range([height, 0]);
 
-            const line = d3.line()
-                .x(d => x(new Date(d[0])))
-                .y(d => y(d[1]));
+    svg.append("g")
+        .attr("transform", `translate(0, ${height})`)
+        .call(d3.axisBottom(x));
 
-            svg.append("path")
-                .datum(Object.entries(trendData))
-                .attr("fill", "none")
-                .attr("stroke", "orange")
-                .attr("stroke-width", 2)
-                .attr("d", line)
-                .transition()
-                .duration(750); // Animation on load
-        }
+    svg.append("g")
+        .call(d3.axisLeft(y));
 
-        function drawAdditionalChart(data) {
-            // Here you can add another chart, for example a count of tests by status
-            const additionalSummary = {};
-            data.forEach(result => {
-                const status = result.status;
-                additionalSummary[status] = (additionalSummary[status] || 0) + 1;
-            });
+    const line = d3.line()
+        .x(d => x(new Date(d[0])))
+        .y(d => y(d[1]));
 
-            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
-            const width = 400 - margin.left - margin.right;
-            const height = 300 - margin.top - margin.bottom;
+    svg.append("path")
+        .datum(Object.entries(trendData))
+        .attr("fill", "none")
+        .attr("stroke", "orange")
+        .attr("stroke-width", 2)
+        .attr("d", line)
+        .transition()
+        .duration(750); // Animation on load
 
-            const svg = d3.select("#additional-chart")
-                .append("svg")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+    // Add values along the line
+    svg.selectAll(".line-label")
+        .data(Object.entries(trendData))
+        .enter()
+        .append("text")
+        .attr("class", "line-label")
+        .attr("x", d => x(new Date(d[0])))
+        .attr("y", d => y(d[1]) - 5) // Positioning above the line
+        .attr("text-anchor", "middle")
+        .text(d => d[1]);
+}
 
-            const x = d3.scaleBand()
-                .domain(Object.keys(additionalSummary))
-                .range([0, width])
-                .padding(0.1);
+function drawAdditionalChart(data) {
+    const additionalSummary = {};
+    data.forEach(result => {
+        const status = result.status;
+        additionalSummary[status] = (additionalSummary[status] || 0) + 1;
+    });
 
-            const y = d3.scaleLinear()
-                .domain([0, d3.max(Object.values(additionalSummary))])
-                .nice()
-                .range([height, 0]);
+    const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+    const width = 400 - margin.left - margin.right;
+    const height = 300 - margin.top - margin.bottom;
 
-            svg.append("g")
-                .attr("transform", `translate(0, ${height})`)
-                .call(d3.axisBottom(x));
+    const svg = d3.select("#additional-chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-            svg.append("g")
-                .call(d3.axisLeft(y));
+    const x = d3.scaleBand()
+        .domain(Object.keys(additionalSummary))
+        .range([0, width])
+        .padding(0.1);
 
-            svg.selectAll(".bar")
-                .data(Object.entries(additionalSummary))
-                .enter()
-                .append("rect")
-                .attr("class", "bar")
-                .attr("x", d => x(d[0]))
-                .attr("y", d => y(d[1]))
-                .attr("width", x.bandwidth())
-                .attr("height", d => height - y(d[1]))
-                .attr("fill", "lightcoral")
-                .transition()
-                .duration(750); // Animation on load
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(Object.values(additionalSummary))])
+        .nice()
+        .range([height, 0]);
 
-            // Add legend
-            const legend = svg.append("g")
-                .attr("transform", `translate(${width + 10}, 0)`);
+    svg.append("g")
+        .attr("transform", `translate(0, ${height})`)
+        .call(d3.axisBottom(x));
 
-            legend.append("text")
-                .text("Tests by Status")
-                .attr("y", 10)
-                .attr("font-weight", "bold");
+    svg.append("g")
+        .call(d3.axisLeft(y));
 
-            Object.entries(additionalSummary).forEach((d, i) => {
-                legend.append("rect")
-                    .attr("x", 0)
-                    .attr("y", 20 + i * 20)
-                    .attr("width", 15)
-                    .attr("height", 15)
-                    .attr("fill", "lightcoral");
+    svg.selectAll(".bar")
+        .data(Object.entries(additionalSummary))
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x", d => x(d[0]))
+        .attr("y", d => y(d[1]))
+        .attr("width", x.bandwidth())
+        .attr("height", d => height - y(d[1]))
+        .attr("fill", "green")
+        .transition()
+        .duration(750); // Animation on load
 
-                legend.append("text")
-                    .attr("x", 20)
-                    .attr("y", 20 + i * 20 + 12)
-                    .text(d[0]);
-            });
-        }
+    // Add values on top of bars
+    svg.selectAll(".bar")
+        .data(Object.entries(additionalSummary))
+        .enter()
+        .append("text")
+        .attr("x", d => x(d[0]) + x.bandwidth() / 2)
+        .attr("y", d => y(d[1]) - 5) // Positioning above the bar
+        .attr("text-anchor", "middle")
+        .text(d => d[1]);
+}
 
         // Fetch data on page load
         fetchData();
