@@ -14,5 +14,23 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  api:
+    build:
+      context: ./api  # Assuming your API Dockerfile is in the api folder
+    container_name: api_server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # API served on port 3000
+    depends_on:
+      - mongo
+
+  ui:
+    build:
+      context: ./ui  # Assuming your UI Dockerfile is in the ui folder
+    container_name: ui_server
+    restart: unless-stopped
+    ports:
+      - "80:80"      # UI served on port 80
+
 volumes:
   mongo_data:
