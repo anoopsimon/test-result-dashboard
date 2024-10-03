@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Results Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        .chart {
+            margin: 20px 0;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <h1>Test Results Dashboard</h1>
+    <div id="summary-chart" class="chart"></div>
+    <div id="summary-by-date" class="chart"></div>
+    <div id="trend-chart" class="chart"></div>
+
+    <script>
+        // Fetch data from API and render charts
+        async function fetchData() {
+            const response = await fetch('http://localhost:3000/results');
+            const data = await response.json();
+            renderCharts(data);
+        }
+
+        function renderCharts(data) {
+            // Process data for charts
+            const summary = {};
+            const summaryByDate = {};
+            const trendData = {};
+
+            data.forEach(result => {
+                // Summary
+                const status = result.status;
+                summary[status] = (summary[status] || 0) + 1;
+
+                // Summary by date
+                const date = new Date(result.startTime).toISOString().split('T')[0];
+                summaryByDate[date] = (summaryByDate[date] || 0) + 1;
+
+                // Trend Data
+                const duration = result.duration;
+                trendData[date] = (trendData[date] || 0) + duration;
+            });
+
+            drawSummaryChart(summary);
+            drawSummaryByDateChart(summaryByDate);
+            drawTrendChart(trendData);
+        }
+
+        function drawSummaryChart(summary) {
+            const width = 400;
+            const height = 300;
+
+            const svg = d3.select("#summary-chart").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const radius = Math.min(width, height) / 2;
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+            const pie = d3.pie().value(d => d[1]);
+            const arc = d3.arc().innerRadius(0).outerRadius(radius);
+
+            const dataReady = pie(Object.entries(summary));
+
+            svg.append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`)
+                .selectAll("slice")
+                .data(dataReady)
+                .enter()
+                .append("path")
+                .attr("d", arc)
+                .attr("fill", d => color(d.data[0]))
+                .attr("stroke", "white")
+                .style("stroke-width", "2px");
+        }
+
+        function drawSummaryByDateChart(summaryByDate) {
+            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+            const width = 400 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            const svg = d3.select("#summary-by-date")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+            const x = d3.scaleBand()
+                .domain(Object.keys(summaryByDate))
+                .range([0, width])
+                .padding(0.1);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(summaryByDate))])
+                .nice()
+                .range([height, 0]);
+
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x));
+
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            svg.selectAll(".bar")
+                .data(Object.entries(summaryByDate))
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d[0]))
+                .attr("y", d => y(d[1]))
+                .attr("width", x.bandwidth())
+                .attr("height", d => height - y(d[1]))
+                .attr("fill", "steelblue");
+        }
+
+        function drawTrendChart(trendData) {
+            const margin = { top: 20, right: 30, bottom: 30, left: 40 };
+            const width = 400 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            const svg = d3.select("#trend-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+            const x = d3.scaleTime()
+                .domain(d3.extent(Object.keys(trendData), d => new Date(d)))
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(trendData))])
+                .nice()
+                .range([height, 0]);
+
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x));
+
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            const line = d3.line()
+                .x(d => x(new Date(d[0])))
+                .y(d => y(d[1]));
+
+            svg.append("path")
+                .datum(Object.entries(trendData))
+                .attr("fill", "none")
+                .attr("stroke", "orange")
+                .attr("stroke-width", 2)
+                .attr("d", line);
+        }
+
+        // Fetch data on page load
+        fetchData();
+    </script>
+</body>
+</html>
