@@ -12,18 +12,41 @@
         }
         h1 {
             text-align: center;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
         }
         .chart {
-            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        .legend {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .bar {
+            transition: fill 0.3s;
+        }
+        .bar:hover {
+            fill: orange;
         }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <h1>Test Results Dashboard</h1>
-    <div id="summary-chart" class="chart"></div>
-    <div id="summary-by-date" class="chart"></div>
-    <div id="trend-chart" class="chart"></div>
+    <div class="chart-container">
+        <div id="summary-chart" class="chart"></div>
+        <div id="summary-by-date" class="chart"></div>
+        <div id="trend-chart" class="chart"></div>
+        <div id="additional-chart" class="chart"></div>
+    </div>
 
     <script>
         // Fetch data from API and render charts
@@ -34,21 +57,17 @@
         }
 
         function renderCharts(data) {
-            // Process data for charts
             const summary = {};
             const summaryByDate = {};
             const trendData = {};
 
             data.forEach(result => {
-                // Summary
                 const status = result.status;
                 summary[status] = (summary[status] || 0) + 1;
 
-                // Summary by date
                 const date = new Date(result.startTime).toISOString().split('T')[0];
                 summaryByDate[date] = (summaryByDate[date] || 0) + 1;
 
-                // Trend Data
                 const duration = result.duration;
                 trendData[date] = (trendData[date] || 0) + duration;
             });
@@ -56,6 +75,7 @@
             drawSummaryChart(summary);
             drawSummaryByDateChart(summaryByDate);
             drawTrendChart(trendData);
+            drawAdditionalChart(data); // Additional chart
         }
 
         function drawSummaryChart(summary) {
@@ -64,7 +84,9 @@
 
             const svg = d3.select("#summary-chart").append("svg")
                 .attr("width", width)
-                .attr("height", height);
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
 
             const radius = Math.min(width, height) / 2;
             const color = d3.scaleOrdinal(d3.schemeCategory10);
@@ -73,16 +95,38 @@
 
             const dataReady = pie(Object.entries(summary));
 
-            svg.append("g")
-                .attr("transform", `translate(${width / 2}, ${height / 2})`)
-                .selectAll("slice")
+            svg.selectAll("slice")
                 .data(dataReady)
                 .enter()
                 .append("path")
                 .attr("d", arc)
                 .attr("fill", d => color(d.data[0]))
                 .attr("stroke", "white")
-                .style("stroke-width", "2px");
+                .style("stroke-width", "2px")
+                .transition()
+                .duration(750); // Animation on load
+
+            // Add legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width / 2 + 50}, ${-height / 2 + 20})`);
+
+            legend.selectAll("legend-item")
+                .data(Object.entries(summary))
+                .enter()
+                .append("rect")
+                .attr("x", 0)
+                .attr("y", (d, i) => i * 20)
+                .attr("width", 15)
+                .attr("height", 15)
+                .attr("fill", (d, i) => color(d[0]));
+
+            legend.selectAll("legend-text")
+                .data(Object.entries(summary))
+                .enter()
+                .append("text")
+                .attr("x", 20)
+                .attr("y", (d, i) => i * 20 + 12)
+                .text(d => d[0]);
         }
 
         function drawSummaryByDateChart(summaryByDate) {
@@ -123,7 +167,32 @@
                 .attr("y", d => y(d[1]))
                 .attr("width", x.bandwidth())
                 .attr("height", d => height - y(d[1]))
-                .attr("fill", "steelblue");
+                .attr("fill", "steelblue")
+                .transition()
+                .duration(750); // Animation on load
+
+            // Add legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width + 10}, 0)`);
+
+            legend.append("text")
+                .text("Tests Run")
+                .attr("y", 10)
+                .attr("font-weight", "bold");
+
+            Object.entries(summaryByDate).forEach((d, i) => {
+                legend.append("rect")
+                    .attr("x", 0)
+                    .attr("y", 20 + i * 20)
+                    .attr("width", 15)
+                    .attr("height", 15)
+                    .attr("fill", "steelblue");
+
+                legend.append("text")
+                    .attr("x", 20)
+                    .attr("y", 20 + i * 20 + 12)
+                    .text(d[0]);
+            });
         }
 
         function drawTrendChart(trendData) {
@@ -163,7 +232,82 @@
                 .attr("fill", "none")
                 .attr("stroke", "orange")
                 .attr("stroke-width", 2)
-                .attr("d", line);
+                .attr("d", line)
+                .transition()
+                .duration(750); // Animation on load
+        }
+
+        function drawAdditionalChart(data) {
+            // Here you can add another chart, for example a count of tests by status
+            const additionalSummary = {};
+            data.forEach(result => {
+                const status = result.status;
+                additionalSummary[status] = (additionalSummary[status] || 0) + 1;
+            });
+
+            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+            const width = 400 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            const svg = d3.select("#additional-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+            const x = d3.scaleBand()
+                .domain(Object.keys(additionalSummary))
+                .range([0, width])
+                .padding(0.1);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(additionalSummary))])
+                .nice()
+                .range([height, 0]);
+
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x));
+
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            svg.selectAll(".bar")
+                .data(Object.entries(additionalSummary))
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d[0]))
+                .attr("y", d => y(d[1]))
+                .attr("width", x.bandwidth())
+                .attr("height", d => height - y(d[1]))
+                .attr("fill", "lightcoral")
+                .transition()
+                .duration(750); // Animation on load
+
+            // Add legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width + 10}, 0)`);
+
+            legend.append("text")
+                .text("Tests by Status")
+                .attr("y", 10)
+                .attr("font-weight", "bold");
+
+            Object.entries(additionalSummary).forEach((d, i) => {
+                legend.append("rect")
+                    .attr("x", 0)
+                    .attr("y", 20 + i * 20)
+                    .attr("width", 15)
+                    .attr("height", 15)
+                    .attr("fill", "lightcoral");
+
+                legend.append("text")
+                    .attr("x", 20)
+                    .attr("y", 20 + i * 20 + 12)
+                    .text(d[0]);
+            });
         }
 
         // Fetch data on page load
