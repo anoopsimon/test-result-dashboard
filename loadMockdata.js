@@ -24,20 +24,22 @@ const getRandomStatus = () => Math.random() > 0.5 ? 'pass' : 'fail';
 // Helper function to generate random durations
 const getRandomDuration = () => Math.floor(Math.random() * 300) + 60; // Random duration between 60 and 360 seconds
 
-// Helper function to generate random timestamps
-const getRandomTime = (startDate) => {
-    const startTimestamp = startDate.getTime();
-    const endTimestamp = startTimestamp + (24 * 60 * 60 * 1000); // 24 hours later
-    return new Date(Math.floor(Math.random() * (endTimestamp - startTimestamp) + startTimestamp));
+// Helper function to generate random timestamps within the last 6 months
+const getRandomTime = () => {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const now = new Date();
+
+    // Generate a random timestamp between sixMonthsAgo and now
+    return new Date(Math.floor(Math.random() * (now.getTime() - sixMonthsAgo.getTime()) + sixMonthsAgo.getTime()));
 };
 
 // Function to generate mock data
 const generateMockData = (numTests) => {
     const mockData = [];
-    const startDate = new Date('2024-10-01T00:00:00Z');
 
     for (let i = 0; i < numTests; i++) {
-        const startTime = getRandomTime(startDate);
+        const startTime = getRandomTime();
         const duration = getRandomDuration();
         const endTime = new Date(startTime.getTime() + duration * 1000);
 
@@ -66,7 +68,7 @@ const loadMockData = async () => {
         await TestResult.deleteMany({});
 
         // Generate and insert mock data
-        const mockData = generateMockData(1000); // Generate 10 random test results
+        const mockData = generateMockData(1000); // Generate 1000 random test results
         const result = await TestResult.insertMany(mockData);
         console.log('Mock data loaded:', result);
 

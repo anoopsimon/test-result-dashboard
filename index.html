@@ -25,6 +25,14 @@
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             padding: 20px;
+            overflow: hidden; /* Ensures content is contained */
+            max-height: 400px; /* Sets a max height for charts */
+            position: relative; /* Position relative for absolute children */
+            cursor: pointer; /* Change cursor to indicate clickable */
+        }
+        h3 {
+            text-align: center;
+            margin: 0 0 15px; /* Adds space below the heading */
         }
         .legend {
             margin: 10px 0;
@@ -36,19 +44,70 @@
         .bar:hover {
             fill: orange;
         }
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0, 0, 0, 0.8); /* Black w/ opacity */
+            padding-top: 60px; /* Location of the box */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <h1>Test Results Dashboard</h1>
     <div class="chart-container">
-        <div id="summary-chart" class="chart"></div>
-        <div id="summary-by-date" class="chart"></div>
-        <div id="trend-chart" class="chart"></div>
-        <div id="additional-chart" class="chart"></div>
+        <div id="summary-chart" class="chart">
+            <h3>Summary Chart</h3>
+        </div>
+        <div id="summary-by-date" class="chart">
+            <h3>Tests by Date</h3>
+        </div>
+        <div id="trend-chart" class="chart">
+            <h3>Trend Chart</h3>
+        </div>
+        <div id="additional-chart" class="chart">
+            <h3>Additional Summary</h3>
+        </div>
+    </div>
+
+    <!-- Modal for enlarged charts -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Chart</h2>
+            <div id="modal-chart" style="width: 100%; height: 400px;"></div>
+        </div>
     </div>
 
     <script>
+        let currentChartId = "";
+
         // Fetch data from API and render charts
         async function fetchData() {
             const response = await fetch('http://localhost:3000/results');
@@ -77,258 +136,357 @@
             drawTrendChart(trendData);
             drawAdditionalChart(data); // Additional chart
         }
+
         function drawSummaryChart(summary) {
-    const width = 400;
-    const height = 300;
+            const width = 400;
+            const height = 300;
 
-    const svg = d3.select("#summary-chart").append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .append("g")
-        .attr("transform", `translate(${width / 2}, ${height / 2})`);
+            const svg = d3.select("#summary-chart").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
 
-    const radius = Math.min(width, height) / 2;
-    const color = d3.scaleOrdinal(d3.schemeCategory10);
-    const pie = d3.pie().value(d => d[1]);
-    const arc = d3.arc().innerRadius(0).outerRadius(radius);
+            const radius = Math.min(width, height) / 2;
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+            const pie = d3.pie().value(d => d[1]);
+            const arc = d3.arc().innerRadius(0).outerRadius(radius);
 
-    const dataReady = pie(Object.entries(summary));
+            const dataReady = pie(Object.entries(summary));
 
-    svg.selectAll("slice")
-        .data(dataReady)
-        .enter()
-        .append("path")
-        .attr("d", arc)
-        .attr("fill", d => color(d.data[0]))
-        .attr("stroke", "white")
-        .style("stroke-width", "2px")
-        .transition()
-        .duration(750); // Animation on load
+            svg.selectAll("slice")
+                .data(dataReady)
+                .enter()
+                .append("path")
+                .attr("d", arc)
+                .attr("fill", d => color(d.data[0]))
+                .attr("stroke", "white")
+                .style("stroke-width", "2px")
+                .transition()
+                .duration(750); // Animation on load
 
-    // Add values on the pie chart
-    svg.selectAll("slice")
-        .data(dataReady)
-        .enter()
-        .append("text")
-        .attr("transform", d => `translate(${arc.centroid(d)})`)
-        .attr("dy", "0.35em")
-        .attr("text-anchor", "middle")
-        .text(d => d.data[1])
-        .style("fill", "white");
+            // Add values on the pie chart
+            svg.selectAll("slice")
+                .data(dataReady)
+                .enter()
+                .append("text")
+                .attr("transform", d => `translate(${arc.centroid(d)})`)
+                .attr("dy", "0.35em")
+                .attr("text-anchor", "middle")
+                .text(d => d.data[1])
+                .style("fill", "white");
 
-    // Add legend
-    const legend = svg.append("g")
-        .attr("transform", `translate(${width / 2 + 50}, ${-height / 2 + 20})`);
+            // Add legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width / 2 + 50}, ${-height / 2 + 20})`);
 
-    legend.selectAll("legend-item")
-        .data(Object.entries(summary))
-        .enter()
-        .append("rect")
-        .attr("x", 0)
-        .attr("y", (d, i) => i * 20)
-        .attr("width", 15)
-        .attr("height", 15)
-        .attr("fill", (d, i) => color(d[0]));
+            legend.selectAll("legend-item")
+                .data(Object.entries(summary))
+                .enter()
+                .append("rect")
+                .attr("x", 0)
+                .attr("y", (d, i) => i * 20)
+                .attr("width", 15)
+                .attr("height", 15)
+                .attr("fill", (d, i) => color(d[0]));
 
-    legend.selectAll("legend-text")
-        .data(Object.entries(summary))
-        .enter()
-        .append("text")
-        .attr("x", 20)
-        .attr("y", (d, i) => i * 20 + 12)
-        .text(d => d[0]);
-}
+            legend.selectAll("legend-text")
+                .data(Object.entries(summary))
+                .enter()
+                .append("text")
+                .attr("x", 20)
+                .attr("y", (d, i) => i * 20 + 12)
+                .text(d => d[0]);
 
-function drawSummaryByDateChart(summaryByDate) {
-    const margin = { top: 10, right: 30, bottom: 30, left: 40 };
-    const width = 400 - margin.left - margin.right;
-    const height = 300 - margin.top - margin.bottom;
+            // Add click event for modal
+            d3.select("#summary-chart").on("click", () => openModal("Summary Chart", summary));
+        }
 
-    const svg = d3.select("#summary-by-date")
-        .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top})`);
+        function drawSummaryByDateChart(summaryByDate) {
+            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+            const width = 400 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
 
-    const x = d3.scaleBand()
-        .domain(Object.keys(summaryByDate))
-        .range([0, width])
-        .padding(0.1);
+            const svg = d3.select("#summary-by-date")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(Object.values(summaryByDate))])
-        .nice()
-        .range([height, 0]);
+            const x = d3.scaleBand()
+                .domain(Object.keys(summaryByDate))
+                .range([0, width])
+                .padding(0.1);
 
-    svg.append("g")
-        .attr("transform", `translate(0, ${height})`)
-        .call(d3.axisBottom(x));
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(summaryByDate))])
+                .nice()
+                .range([height, 0]);
 
-    svg.append("g")
-        .call(d3.axisLeft(y));
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x));
 
-    svg.selectAll(".bar")
-        .data(Object.entries(summaryByDate))
-        .enter()
-        .append("rect")
-        .attr("class", "bar")
-        .attr("x", d => x(d[0]))
-        .attr("y", d => y(d[1]))
-        .attr("width", x.bandwidth())
-        .attr("height", d => height - y(d[1]))
-        .attr("fill", "steelblue")
-        .transition()
-        .duration(750); // Animation on load
+            svg.append("g")
+                .call(d3.axisLeft(y));
 
-    // Add values on top of bars
-    svg.selectAll(".bar")
-        .data(Object.entries(summaryByDate))
-        .enter()
-        .append("text")
-        .attr("x", d => x(d[0]) + x.bandwidth() / 2)
-        .attr("y", d => y(d[1]) - 5) // Positioning above the bar
-        .attr("text-anchor", "middle")
-        .text(d => d[1]);
+            svg.selectAll(".bar")
+                .data(Object.entries(summaryByDate))
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d[0]))
+                .attr("y", d => y(d[1]))
+                .attr("width", x.bandwidth())
+                .attr("height", d => height - y(d[1]))
+                .attr("fill", "steelblue")
+                .transition()
+                .duration(750); // Animation on load
 
-    // Add legend
-    const legend = svg.append("g")
-        .attr("transform", `translate(${width + 10}, 0)`);
+            // Add values on top of bars
+            svg.selectAll(".bar")
+                .data(Object.entries(summaryByDate))
+                .enter()
+                .append("text")
+                .attr("x", d => x(d[0]) + x.bandwidth() / 2)
+                .attr("y", d => y(d[1]) - 5)
+                .attr("text-anchor", "middle")
+                .text(d => d[1]);
 
-    legend.append("text")
-        .text("Tests Run")
-        .attr("y", 10)
-        .attr("font-weight", "bold");
+            // Add click event for modal
+            d3.select("#summary-by-date").on("click", () => openModal("Tests by Date", summaryByDate));
+        }
 
-    Object.entries(summaryByDate).forEach((d, i) => {
-        legend.append("rect")
-            .attr("x", 0)
-            .attr("y", 20 + i * 20)
-            .attr("width", 15)
-            .attr("height", 15)
-            .attr("fill", "steelblue");
+        function drawTrendChart(trendData) {
+            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+            const width = 400 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
 
-        legend.append("text")
-            .attr("x", 20)
-            .attr("y", 20 + i * 20 + 12)
-            .text(d[0]);
-    });
-}
+            const svg = d3.select("#trend-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-function drawTrendChart(trendData) {
-    const margin = { top: 20, right: 30, bottom: 30, left: 40 };
-    const width = 400 - margin.left - margin.right;
-    const height = 300 - margin.top - margin.bottom;
+            const x = d3.scaleBand()
+                .domain(Object.keys(trendData))
+                .range([0, width])
+                .padding(0.1);
 
-    const svg = d3.select("#trend-chart")
-        .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top})`);
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(Object.values(trendData))])
+                .nice()
+                .range([height, 0]);
 
-    const x = d3.scaleTime()
-        .domain(d3.extent(Object.keys(trendData), d => new Date(d)))
-        .range([0, width]);
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x));
 
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(Object.values(trendData))])
-        .nice()
-        .range([height, 0]);
+            svg.append("g")
+                .call(d3.axisLeft(y));
 
-    svg.append("g")
-        .attr("transform", `translate(0, ${height})`)
-        .call(d3.axisBottom(x));
+            svg.selectAll(".line")
+                .data([Object.entries(trendData)])
+                .enter()
+                .append("path")
+                .attr("fill", "none")
+                .attr("stroke", "orange")
+                .attr("stroke-width", 1.5)
+                .attr("d", d3.line()
+                    .x(d => x(d[0]) + x.bandwidth() / 2) // Adjust for centering
+                    .y(d => y(d[1]))
+                );
 
-    svg.append("g")
-        .call(d3.axisLeft(y));
+            // Add click event for modal
+            d3.select("#trend-chart").on("click", () => openModal("Trend Chart", trendData));
+        }
 
-    const line = d3.line()
-        .x(d => x(new Date(d[0])))
-        .y(d => y(d[1]));
+        function drawAdditionalChart(data) {
+            const margin = { top: 10, right: 30, bottom: 30, left: 40 };
+            const width = 400 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
 
-    svg.append("path")
-        .datum(Object.entries(trendData))
-        .attr("fill", "none")
-        .attr("stroke", "orange")
-        .attr("stroke-width", 2)
-        .attr("d", line)
-        .transition()
-        .duration(750); // Animation on load
+            const svg = d3.select("#additional-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    // Add values along the line
-    svg.selectAll(".line-label")
-        .data(Object.entries(trendData))
-        .enter()
-        .append("text")
-        .attr("class", "line-label")
-        .attr("x", d => x(new Date(d[0])))
-        .attr("y", d => y(d[1]) - 5) // Positioning above the line
-        .attr("text-anchor", "middle")
-        .text(d => d[1]);
-}
+            const x = d3.scaleBand()
+                .domain(data.map(d => d.name)) // Assuming `name` field exists
+                .range([0, width])
+                .padding(0.1);
 
-function drawAdditionalChart(data) {
-    const additionalSummary = {};
-    data.forEach(result => {
-        const status = result.status;
-        additionalSummary[status] = (additionalSummary[status] || 0) + 1;
-    });
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.duration)]) // Assuming `duration` field exists
+                .nice()
+                .range([height, 0]);
 
-    const margin = { top: 10, right: 30, bottom: 30, left: 40 };
-    const width = 400 - margin.left - margin.right;
-    const height = 300 - margin.top - margin.bottom;
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x));
 
-    const svg = d3.select("#additional-chart")
-        .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top})`);
+            svg.append("g")
+                .call(d3.axisLeft(y));
 
-    const x = d3.scaleBand()
-        .domain(Object.keys(additionalSummary))
-        .range([0, width])
-        .padding(0.1);
+            svg.selectAll(".bar")
+                .data(data)
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d.name))
+                .attr("y", d => y(d.duration))
+                .attr("width", x.bandwidth())
+                .attr("height", d => height - y(d.duration))
+                .attr("fill", "green")
+                .transition()
+                .duration(750); // Animation on load
 
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(Object.values(additionalSummary))])
-        .nice()
-        .range([height, 0]);
+            // Add click event for modal
+            d3.select("#additional-chart").on("click", () => openModal("Additional Summary", data));
+        }
 
-    svg.append("g")
-        .attr("transform", `translate(0, ${height})`)
-        .call(d3.axisBottom(x));
+        function openModal(chartTitle, chartData) {
+            currentChartId = chartTitle;
+            const modal = document.getElementById("myModal");
+            const modalChart = document.getElementById("modal-chart");
+            modalChart.innerHTML = ""; // Clear previous content
+            const width = 600; // Width for the modal chart
+            const height = 400; // Height for the modal chart
 
-    svg.append("g")
-        .call(d3.axisLeft(y));
+            const svg = d3.select(modalChart).append("svg")
+                .attr("width", width)
+                .attr("height", height);
 
-    svg.selectAll(".bar")
-        .data(Object.entries(additionalSummary))
-        .enter()
-        .append("rect")
-        .attr("class", "bar")
-        .attr("x", d => x(d[0]))
-        .attr("y", d => y(d[1]))
-        .attr("width", x.bandwidth())
-        .attr("height", d => height - y(d[1]))
-        .attr("fill", "green")
-        .transition()
-        .duration(750); // Animation on load
+            if (currentChartId === "Summary Chart") {
+                const radius = Math.min(width, height) / 2;
+                const color = d3.scaleOrdinal(d3.schemeCategory10);
+                const pie = d3.pie().value(d => d[1]);
+                const arc = d3.arc().innerRadius(0).outerRadius(radius);
 
-    // Add values on top of bars
-    svg.selectAll(".bar")
-        .data(Object.entries(additionalSummary))
-        .enter()
-        .append("text")
-        .attr("x", d => x(d[0]) + x.bandwidth() / 2)
-        .attr("y", d => y(d[1]) - 5) // Positioning above the bar
-        .attr("text-anchor", "middle")
-        .text(d => d[1]);
-}
+                const dataReady = pie(Object.entries(chartData));
 
-        // Fetch data on page load
-        fetchData();
+                svg.append("g")
+                    .attr("transform", `translate(${width / 2}, ${height / 2})`)
+                    .selectAll("slice")
+                    .data(dataReady)
+                    .enter()
+                    .append("path")
+                    .attr("d", arc)
+                    .attr("fill", d => color(d.data[0]))
+                    .attr("stroke", "white")
+                    .style("stroke-width", "2px")
+                    .transition()
+                    .duration(750); // Animation on load
+            } else if (currentChartId === "Tests by Date") {
+                const x = d3.scaleBand()
+                    .domain(Object.keys(chartData))
+                    .range([0, width])
+                    .padding(0.1);
+
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(Object.values(chartData))])
+                    .nice()
+                    .range([height, 0]);
+
+                svg.append("g")
+                    .attr("transform", `translate(0, ${height})`)
+                    .call(d3.axisBottom(x));
+
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+
+                svg.selectAll(".bar")
+                    .data(Object.entries(chartData))
+                    .enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", d => x(d[0]))
+                    .attr("y", d => y(d[1]))
+                    .attr("width", x.bandwidth())
+                    .attr("height", d => height - y(d[1]))
+                    .attr("fill", "steelblue")
+                    .transition()
+                    .duration(750); // Animation on load
+            } else if (currentChartId === "Trend Chart") {
+                const x = d3.scaleBand()
+                    .domain(Object.keys(chartData))
+                    .range([0, width])
+                    .padding(0.1);
+
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(Object.values(chartData))])
+                    .nice()
+                    .range([height, 0]);
+
+                svg.append("g")
+                    .attr("transform", `translate(0, ${height})`)
+                    .call(d3.axisBottom(x));
+
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+
+                svg.append("path")
+                    .datum(Object.entries(chartData))
+                    .attr("fill", "none")
+                    .attr("stroke", "orange")
+                    .attr("stroke-width", 1.5)
+                    .attr("d", d3.line()
+                        .x(d => x(d[0]) + x.bandwidth() / 2)
+                        .y(d => y(d[1]))
+                    );
+            } else if (currentChartId === "Additional Summary") {
+                const x = d3.scaleBand()
+                    .domain(chartData.map(d => d.name))
+                    .range([0, width])
+                    .padding(0.1);
+
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(chartData, d => d.duration)])
+                    .nice()
+                    .range([height, 0]);
+
+                svg.append("g")
+                    .attr("transform", `translate(0, ${height})`)
+                    .call(d3.axisBottom(x));
+
+                svg.append("g")
+                    .call(d3.axisLeft(y));
+
+                svg.selectAll(".bar")
+                    .data(chartData)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", d => x(d.name))
+                    .attr("y", d => y(d.duration))
+                    .attr("width", x.bandwidth())
+                    .attr("height", d => height - y(d.duration))
+                    .attr("fill", "green")
+                    .transition()
+                    .duration(750); // Animation on load
+            }
+
+            modal.style.display = "block"; // Show the modal
+        }
+
+        // Close modal when the user clicks on <span> (x)
+        document.querySelector(".close").onclick = function() {
+            document.getElementById("myModal").style.display = "none";
+        }
+
+        // Close modal when the user clicks anywhere outside of the modal
+        window.onclick = function(event) {
+            const modal = document.getElementById("myModal");
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        fetchData(); // Initial data fetch
     </script>
 </body>
 </html>
